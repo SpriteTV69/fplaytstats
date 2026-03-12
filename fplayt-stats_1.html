@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPlayT · Server Stats</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --bg2: #0d1420;
+    --bg3: #111c2e;
+    --border: #1a2d4a;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8d8f0;
+    --text-dim: #4a6080;
+    --red: #ff3333;
+    --gold: #ffd700;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanline effect */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 30px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--accent), #0080ff);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  .logo-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: #fff;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent3);
+    border-radius: 50%;
+    animation: blink 1.2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--accent3);
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* STATUS CARDS */
+  .status-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-line, linear-gradient(90deg, var(--accent), transparent));
+  }
+
+  .stat-card:hover {
+    border-color: rgba(0,212,255,0.3);
+    transform: translateY(-2px);
+  }
+
+  .stat-card.online { --accent-line: linear-gradient(90deg, var(--accent3), transparent); }
+  .stat-card.status { --accent-line: linear-gradient(90deg, var(--accent), transparent); }
+  .stat-card.peak { --accent-line: linear-gradient(90deg, var(--gold), transparent); }
+  .stat-card.restarts { --accent-line: linear-gradient(90deg, var(--accent2), transparent); }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .stat-value.green { color: var(--accent3); text-shadow: 0 0 20px rgba(57,255,20,0.4); }
+  .stat-value.blue { color: var(--accent); text-shadow: 0 0 20px rgba(0,212,255,0.4); }
+  .stat-value.gold { color: var(--gold); }
+  .stat-value.orange { color: var(--accent2); }
+
+  .stat-sub {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* SERVER STATUS BAR */
+  .server-banner {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .server-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .server-status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 12px var(--accent3);
+    animation: blink 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  .server-status-indicator.offline { background: var(--red); box-shadow: 0 0 12px var(--red); animation: none; }
+  .server-status-indicator.restart { background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+
+  .server-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: #fff;
+  }
+
+  .server-addr {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 2px;
+  }
+
+  .capacity-bar-wrap {
+    flex: 1;
+    max-width: 300px;
+  }
+
+  .capacity-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .capacity-bar {
+    height: 8px;
+    background: var(--bg3);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .capacity-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent3), var(--accent));
+    transition: width 1s ease;
+    box-shadow: 0 0 10px rgba(0,212,255,0.3);
+  }
+
+  .connect-btn {
+    background: linear-gradient(135deg, var(--accent), #0080ff);
+    color: #000;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  .connect-btn:hover { opacity: 0.85; transform: scale(1.03); }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+  }
+
+  /* PLAYER TABLE */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .panel-count {
+    background: rgba(0,212,255,0.12);
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 2px 12px;
+    font-size: 12px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .search-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.2s;
+  }
+
+  .search-input::placeholder { color: var(--text-dim); }
+  .search-input:focus { border-color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    padding: 10px 20px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: 400;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(26,45,74,0.5);
+    transition: background 0.2s;
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  tbody tr:hover { background: rgba(0,212,255,0.04); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  .player-id {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text-dim);
+    font-size: 11px;
+  }
+
+  .player-name {
+    color: #fff;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .player-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--bg3), var(--border));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .ping-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .ping-good { background: rgba(57,255,20,0.12); color: var(--accent3); }
+  .ping-med { background: rgba(255,215,0,0.12); color: var(--gold); }
+  .ping-bad { background: rgba(255,51,51,0.12); color: var(--red); }
+
+  .identifiers {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .no-players {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* SIDEBAR */
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Event log */
+  .event-list { max-height: 220px; overflow-y: auto; padding: 8px 0; }
+  .event-list::-webkit-scrollbar { width: 4px; }
+  .event-list::-webkit-scrollbar-track { background: transparent; }
+  .event-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .event-item {
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(26,45,74,0.4);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: slideIn 0.4s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .event-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .dot-join { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+  .dot-leave { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .dot-restart { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+  .dot-info { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+  .event-msg { font-size: 12px; color: var(--text); line-height: 1.4; }
+  .event-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Chart */
+  .chart-area {
+    padding: 16px 20px 20px;
+    position: relative;
+    height: 130px;
+  }
+
+  canvas#chart { width: 100% !important; height: 100% !important; }
+
+  /* Config panel */
+  .config-section {
+    padding: 16px 20px;
+  }
+
+  .config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(26,45,74,0.4);
+    font-size: 12px;
+  }
+
+  .config-row:last-child { border-bottom: none; }
+  .config-key { color: var(--text-dim); font-family: 'Share Tech Mono', monospace; }
+  .config-val { color: var(--accent); font-family: 'Share Tech Mono', monospace; font-weight: 600; }
+  .config-val.green { color: var(--accent3); }
+  .config-val.red { color: var(--red); }
+
+  /* Refresh bar */
+  .refresh-bar {
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .refresh-progress {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    width: 0%;
+    animation: refresh 30s linear infinite;
+  }
+
+  @keyframes refresh {
+    0% { width: 0%; }
+    100% { width: 100%; }
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .status-row { grid-template-columns: repeat(2, 1fr); }
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 540px) {
+    .status-row { grid-template-columns: 1fr 1fr; }
+    .server-banner { flex-wrap: wrap; }
+    .capacity-bar-wrap { max-width: 100%; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎮</div>
+      <div>
+        <div class="logo-text">FPLAYT</div>
+        <div class="logo-sub">Server Monitor</div>
+      </div>
+    </div>
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      LIVE · AUTO-REFRESH 30s
+    </div>
+  </header>
+
+  <!-- STAT CARDS -->
+  <div class="status-row">
+    <div class="stat-card online">
+      <div class="stat-label">Jucători Online</div>
+      <div class="stat-value green" id="val-online">—</div>
+      <div class="stat-sub" id="val-max">din — sloturi</div>
+    </div>
+    <div class="stat-card status">
+      <div class="stat-label">Status Server</div>
+      <div class="stat-value blue" id="val-status">—</div>
+      <div class="stat-sub" id="val-uptime">se verifică...</div>
+    </div>
+    <div class="stat-card peak">
+      <div class="stat-label">Peak Astăzi</div>
+      <div class="stat-value gold" id="val-peak">—</div>
+      <div class="stat-sub" id="val-peaktime">—</div>
+    </div>
+    <div class="stat-card restarts">
+      <div class="stat-label">Restart Următor</div>
+      <div class="stat-value orange" id="val-restart">—</div>
+      <div class="stat-sub">timp rămas</div>
+    </div>
+  </div>
+
+  <!-- SERVER BANNER -->
+  <div class="server-banner">
+    <div class="server-info">
+      <div class="server-status-indicator" id="srv-dot"></div>
+      <div>
+        <div class="server-name" id="srv-name">Se încarcă...</div>
+        <div class="server-addr">connect server.fplayt.ro</div>
+      </div>
+    </div>
+    <div class="capacity-bar-wrap">
+      <div class="capacity-label">
+        <span>CAPACITATE</span>
+        <span id="cap-label">0/0</span>
+      </div>
+      <div class="capacity-bar">
+        <div class="capacity-fill" id="cap-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <a href="fivem://connect/server.fplayt.ro" class="connect-btn">⚡ CONECTEAZĂ</a>
+  </div>
+
+  <div class="refresh-bar"><div class="refresh-progress"></div></div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-grid" style="margin-top:20px;">
+
+    <!-- PLAYER TABLE -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Jucători Online</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input class="search-input" type="text" placeholder="Caută jucător..." id="search" oninput="filterPlayers()">
+          <div class="panel-count" id="tbl-count">0 online</div>
+        </div>
+      </div>
+      <div id="refresh-bar2" class="refresh-bar"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nume</th>
+              <th>Ping</th>
+              <th>Identifiers</th>
+            </tr>
+          </thead>
+          <tbody id="player-tbody">
+            <tr><td colspan="4" class="no-players">Se încarcă datele...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Graph -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Grafic (24h)</div>
+          <div style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;">jucători / oră</div>
+        </div>
+        <div class="chart-area">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Event Log -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Jurnal Evenimente</div>
+        </div>
+        <div class="event-list" id="event-log"></div>
+      </div>
+
+      <!-- Server Info -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Info Server</div>
+        </div>
+        <div class="config-section" id="server-info-content">
+          <div class="config-row"><span class="config-key">Adresă</span><span class="config-val">server.fplayt.ro</span></div>
+          <div class="config-row"><span class="config-key">Gamemode</span><span class="config-val" id="inf-gamemode">—</span></div>
+          <div class="config-row"><span class="config-key">Framework</span><span class="config-val" id="inf-fw">—</span></div>
+          <div class="config-row"><span class="config-key">OneSync</span><span class="config-val" id="inf-onesync">—</span></div>
+          <div class="config-row"><span class="config-key">Versiune FiveM</span><span class="config-val" id="inf-ver">—</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// ============================================================
+// CONFIG - schimbă SERVER_URL cu IP-ul real al serverului tău
+// ============================================================
+const SERVER_IP = '79.137.98.187';
+const SERVER_PORT = '30120';
+const USE_DEMO = false; // Fetch real de la server
+
+// ============================================================
+// DEMO DATA
+// ============================================================
+const DEMO_PLAYERS = [
+  { id: 1, name: 'Alexandru_Ionescu', ping: 34, identifiers: ['steam:xxxx', 'license:abc'] },
+  { id: 2, name: 'Bogdan_M', ping: 87, identifiers: ['license:def'] },
+  { id: 3, name: 'xX_Cristi_Xx', ping: 156, identifiers: ['discord:123456789'] },
+  { id: 4, name: 'Mihai2005', ping: 22, identifiers: ['steam:yyyy'] },
+  { id: 5, name: 'Andrei_RO', ping: 45, identifiers: ['license:ghi'] },
+  { id: 6, name: 'Stefan_FiveM', ping: 201, identifiers: ['discord:987654321'] },
+  { id: 7, name: 'Cosmin_Play', ping: 67, identifiers: ['steam:zzzz'] },
+  { id: 8, name: 'Razvan_Official', ping: 31, identifiers: ['license:jkl'] },
+];
+
+const DEMO_INFO = {
+  hostname: '🇷🇴 FPlayT Romania | Roleplay',
+  gamemode: 'RolePlay',
+  framework: 'ESX / QBCore',
+  onesync: 'enabled',
+  version: 'FiveM 6633',
+  maxPlayers: 64
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let players = [];
+let serverOnline = true;
+let peak = { count: 0, time: '--:--' };
+let restartMinutes = 187; // demo: next restart in ~3h
+const events = [];
+
+// ============================================================
+// CHART
+// ============================================================
+const chartHours = Array.from({length: 24}, (_, i) => `${String(i).padStart(2,'0')}:00`);
+const chartData = [4,3,2,1,1,2,5,12,18,22,28,35,40,38,42,45,32,28,25,22,18,15,10,7];
+
+const ctx = document.getElementById('chart').getContext('2d');
+const playerChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: chartHours,
+    datasets: [{
+      data: chartData,
+      borderColor: '#00d4ff',
+      backgroundColor: 'rgba(0,212,255,0.08)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: '#00d4ff',
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#0d1420',
+      borderColor: '#1a2d4a',
+      borderWidth: 1,
+      titleColor: '#4a6080',
+      bodyColor: '#00d4ff',
+      titleFont: { family: 'Share Tech Mono', size: 10 },
+      bodyFont: { family: 'Rajdhani', size: 16, weight: '700' },
+      callbacks: { title: t => t[0].label, body: t => t[0].raw + ' jucători' }
+    }},
+    scales: {
+      x: { display: false },
+      y: {
+        display: true,
+        grid: { color: 'rgba(26,45,74,0.4)', drawBorder: false },
+        ticks: { color: '#4a6080', font: { family: 'Share Tech Mono', size: 9 }, maxTicksLimit: 4 },
+        border: { display: false }
+      }
+    }
+  }
+});
+
+// ============================================================
+// ADD EVENT
+// ============================================================
+function addEvent(type, msg) {
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  events.unshift({ type, msg, time });
+  if (events.length > 30) events.pop();
+  renderEvents();
+}
+
+function renderEvents() {
+  const log = document.getElementById('event-log');
+  const dotMap = { join: 'dot-join', leave: 'dot-leave', restart: 'dot-restart', info: 'dot-info' };
+  log.innerHTML = events.map(e => `
+    <div class="event-item">
+      <div class="event-dot ${dotMap[e.type] || 'dot-info'}"></div>
+      <div>
+        <div class="event-msg">${e.msg}</div>
+        <div class="event-time">${e.time}</div>
+      </div>
+    </div>
+  `).join('') || '<div class="no-players">Niciun eveniment</div>';
+}
+
+// ============================================================
+// RENDER PLAYERS
+// ============================================================
+function getPingClass(ping) {
+  if (ping < 80) return 'ping-good';
+  if (ping < 150) return 'ping-med';
+  return 'ping-bad';
+}
+
+function getAvatar(name) {
+  return name ? name[0].toUpperCase() : '?';
+}
+
+let allPlayers = [];
+
+function renderPlayers(list) {
+  const tbody = document.getElementById('player-tbody');
+  document.getElementById('tbl-count').textContent = list.length + ' online';
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="no-players">Niciun jucător online</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map((p, i) => `
+    <tr style="animation-delay:${i * 40}ms">
+      <td class="player-id">[${p.id}]</td>
+      <td>
+        <div class="player-name">
+          <div class="player-avatar">${getAvatar(p.name)}</div>
+          ${escHtml(p.name)}
+        </div>
+      </td>
+      <td><span class="ping-badge ${getPingClass(p.ping)}">${p.ping}ms</span></td>
+      <td class="identifiers">${(p.identifiers||[]).map(id => {
+        const [type] = id.split(':');
+        return `<span style="color:var(--text-dim)">${type}:***</span>`;
+      }).join(' ')}</td>
+    </tr>
+  `).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function filterPlayers() {
+  const q = document.getElementById('search').value.toLowerCase();
+  renderPlayers(q ? allPlayers.filter(p => p.name.toLowerCase().includes(q)) : allPlayers);
+}
+
+// ============================================================
+// UPDATE UI
+// ============================================================
+function updateUI(playerList, info, online) {
+  const prev = allPlayers.map(p => p.id);
+  const curr = playerList.map(p => p.id);
+
+  // detect joins/leaves
+  curr.filter(id => !prev.includes(id)).forEach(id => {
+    const p = playerList.find(x => x.id === id);
+    addEvent('join', `<span style="color:#fff;font-weight:600">${p.name}</span> s-a conectat`);
+  });
+  prev.filter(id => !curr.includes(id)).forEach(id => {
+    const p = allPlayers.find(x => x.id === id);
+    addEvent('leave', `<span style="color:#ff6b6b">${p ? p.name : 'Jucător'}</span> a deconectat`);
+  });
+
+  allPlayers = playerList;
+  filterPlayers();
+
+  // peak
+  if (playerList.length > peak.count) {
+    const now = new Date();
+    peak.count = playerList.length;
+    peak.time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  }
+
+  const maxP = info.maxPlayers || 64;
+  const pct = Math.round((playerList.length / maxP) * 100);
+
+  // cards
+  document.getElementById('val-online').textContent = playerList.length;
+  document.getElementById('val-max').textContent = `din ${maxP} sloturi`;
+  document.getElementById('val-status').textContent = online ? 'ONLINE' : 'OFFLINE';
+  document.getElementById('val-status').className = 'stat-value ' + (online ? 'green' : 'red');
+  document.getElementById('val-uptime').textContent = online ? `✓ Server activ` : '✗ Offline';
+  document.getElementById('val-peak').textContent = peak.count;
+  document.getElementById('val-peaktime').textContent = `la ora ${peak.time}`;
+
+  // capacity
+  document.getElementById('cap-fill').style.width = pct + '%';
+  document.getElementById('cap-label').textContent = `${playerList.length}/${maxP}`;
+
+  // server banner
+  document.getElementById('srv-name').textContent = info.hostname || 'FPlayT Romania';
+  document.getElementById('srv-dot').className = 'server-status-indicator ' + (online ? '' : 'offline');
+
+  // info panel
+  document.getElementById('inf-gamemode').textContent = info.gamemode || '—';
+  document.getElementById('inf-fw').textContent = info.framework || '—';
+  document.getElementById('inf-onesync').textContent = info.onesync || '—';
+  document.getElementById('inf-onesync').className = 'config-val ' + (info.onesync === 'enabled' ? 'green' : '');
+  document.getElementById('inf-ver').textContent = info.version || '—';
+
+  // restart countdown
+  if (restartMinutes > 0) restartMinutes--;
+  const rh = Math.floor(restartMinutes / 60);
+  const rm = restartMinutes % 60;
+  document.getElementById('val-restart').textContent = `${rh}h ${String(rm).padStart(2,'0')}m`;
+}
+
+// ============================================================
+// FETCH (real sau demo)
+// ============================================================
+async function fetchData() {
+  if (USE_DEMO) {
+    // Simulare fluctuatii realiste
+    const base = DEMO_PLAYERS;
+    const extra = Math.random() > 0.5 ? base.slice(0, Math.floor(Math.random() * base.length + 1)) : base;
+    updateUI(extra, DEMO_INFO, true);
+    return;
+  }
+
+  try {
+    const base = `http://${SERVER_IP}:${SERVER_PORT}`;
+    const [playersRes, infoRes] = await Promise.all([
+      fetch(`${base}/players.json`),
+      fetch(`${base}/info.json`)
+    ]);
+    const playerList = await playersRes.json();
+    const rawInfo = await infoRes.json();
+
+    // Normalizare info.json FiveM
+    const vars = rawInfo.vars || {};
+    const info = {
+      hostname: rawInfo.hostname || vars.sv_projectName || 'FPlayT Romania',
+      gamemode: vars.gametype || vars.sv_gamemode || rawInfo.gamename || '—',
+      framework: vars.framework || vars.gamename || '—',
+      onesync: vars.onesync_enabled === '1' ? 'enabled' : (vars.onesync || '—'),
+      version: rawInfo.server || vars.sv_enforceGameBuild || '—',
+      maxPlayers: rawInfo.sv_maxclients || vars.sv_maxclients || 64
+    };
+
+    updateUI(playerList, info, true);
+  } catch(e) {
+    console.error('Eroare fetch:', e);
+    // Dacă CORS blochează, afișăm mesaj util
+    updateUI([], { hostname: 'FPlayT Romania' }, false);
+    addEvent('restart', 'Eroare conexiune — posibil CORS blocat. Rulează de pe același domeniu sau adaugă proxy.');
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+addEvent('info', 'Monitor pornit — 79.137.98.187:30120');
+addEvent('info', 'Auto-refresh activ: 30 secunde');
+
+fetchData();
+setInterval(fetchData, 30000);
+</script>
+</body>
+</html>
